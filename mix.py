@@ -95,3 +95,96 @@ if shw > 0:
 # --- complete Euclidean part of a single quadratic
 if bvout == 1:
     fp = open('mixW.bv', 'w')
+for orient in range(1, 3):
+    if orient == 1:
+        nbs = nbr
+        idx = idx1
+        if bvout == 1:
+            print("group {} odd".format(orient), file=fp)
+    else:
+        nbs = nbl
+        idx = idx0
+        if bvout == 1:
+            print("group {} even".format(orient), file=fp)
+
+    fc = [None] * fcs
+    ctr = np.zeros((V.shape[0], fcs))
+    dual = [None] * fcs
+    for ff in range(fcs):
+        fc[ff] = V[:, nbs[ff, :]]
+        ctr[:, ff] = np.dot(fc[ff], np.ones((vfc, 1))) / vfc
+        dual[ff] = np.zeros((V.shape[0], vfc))
+        for kk in range(vfc):
+            dual[ff][:, kk] = (3 * ctr[:, ff] + fc[ff][:, kk]) / 4
+
+    # --- project vtx neighbors MISSING(not needed for specific geometry)
+    for ii in range(vts):
+        # project duals -- currently left out since valence 3 or 4
+        pass
+
+    for ff in range(fcs):
+        for kk in range(vfc):  # k = index inside face if rem(pat,2)==1
+            pat = 2 * kk + orient
+            km = kk - 1
+            if km < 0:
+                km = kk + vfc - 1
+            kp = kk + 1
+            if kp >= vfc:
+                kp = kk - vfc + 1
+            top = nbs[ff, kk]  # top global vertex index
+            nxt = nbs[ff, kp]  # bottom left vertex index
+            prv = nbs[ff, km]  # bottom right vertex index
+            # kk
+            # kp km
+            # nxt prv
+            ntp = 0
+            for tt in range(fcs):  # neighbor triangle nxt
+                for ii in range(vfc):
+                    ip = ii + 1
+                    if ip >= vfc:
+                        ip = 1
+                    if nbs[tt, ii] == nxt and nbs[tt, ip] == top:
+                        ntp = tt
+                        break
+                if ntp != 0:
+                    break
+
+            ntm = 0
+            for jj in range(fcs):  # neighbor triangle prv-top edge
+                for nn in range(vfc):
+                    np = nn + 1
+                    if np >= vfc:
+                        np = 1
+                    if nbs[jj, nn] == top and nbs[jj, np] == prv:
+                        ntm = jj
+                        break
+                if ntm != 0:
+                    break
+
+            # v10 v00 ff
+            # v11 v01
+            vf0 = dual[ff][:, kk]
+            vfp = dual[ff][:, kp]
+            vfm = dual[ff][:, km]
+            v0p = dual[ntp][:, ip]
+            v1p = dual[ntp][:, ii]
+            v0m = dual[ntm][:, nn]
+            if pat == 1 and ff == 1:
+                plt.plot(vf0[0], vf0[1], vf0[2], 'ro')
+                plt.plot(v0p[0], v0p[1], v0p[2], 'g*')
+                plt.plot(vfp[0], vfp[1], vfp[2], 'b*')
+                plt.plot(v1p[0], v1p[1], v1p[2], 'k+')
+
+            wti_top = wti[val[top] - 2]
+            wti_bot = wti[val[nxt] - 2]
+            wni_top = wni[val[top] - 2]
+            # w_top = 2 * (1 + c0(val(top) - 2)) / 3
+            # w_bot = 2 * (1 + c0(val(nxt) - 2)) / 3
+            # w_prv = 2 * (1 + c0(val(prv) - 2)) / 3
+            w_top = 1
+            w_bot = 1
+            w_prv = 1
+            w1 = np.sqrt(wti_top * wti_bot)
+            w5 = w_top
+            w4 = w_top * wti_top
+            wgt = [w1, w5, (w_top + w_bot + w_prv) / 3, w4, w5, w_top * wni_top]
