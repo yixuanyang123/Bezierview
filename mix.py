@@ -170,10 +170,13 @@ for orient in range(1, 3):
             v1p = dual[ntp][:, ii]
             v0m = dual[ntm][:, nn]
             if pat == 1 and ff == 1:
-                plt.plot(vf0[0], vf0[1], vf0[2], 'ro')
-                plt.plot(v0p[0], v0p[1], v0p[2], 'g*')
-                plt.plot(vfp[0], vfp[1], vfp[2], 'b*')
-                plt.plot(v1p[0], v1p[1], v1p[2], 'k+')
+                fig = plt.figure()
+                ax = fig.add_subplot(111, projection='3d')
+                ax.scatter(vf0[0], vf0[1], vf0[2], color='r', marker='o')
+                ax.scatter(v0p[0], v0p[1], v0p[2], color='g', marker='*')
+                ax.scatter(vfp[0], vfp[1], vfp[2], color='b', marker='*')
+                ax.scatter(v1p[0], v1p[1], v1p[2], color='k', marker='+')
+                plt.show()
 
             wti_top = wti[val[top] - 2]
             wti_bot = wti[val[nxt] - 2]
@@ -188,3 +191,29 @@ for orient in range(1, 3):
             w5 = w_top
             w4 = w_top * wti_top
             wgt = [w1, w5, (w_top + w_bot + w_prv) / 3, w4, w5, w_top * wni_top]
+
+            qE = np.zeros((3, 6)) # Initialize qE as a 3x6 zero matrix: 3 rows for 3D points, 6 columns for the weights
+            # --- assemble by averaging in coeff_i weight_i
+            qE[:, 4] = wgt[4] * vf0
+            qE[:, 1] = wgt[1] * (vf0 + vfp) / 2
+            midopp = wgt[1] * (v0p + v1p) / 2
+            qE[:, 3] = wgt[3] * (vf0 + v0p) / 2
+            qE[:, 0] = wgt[0] * (vf0 + vfp + v0p + v1p) / 4
+            qE[:, 2] = (w_top * vf0 + w_bot * vfp + w_prv * vfm) / 3
+
+            # top is average:  v0p-o + v0m-o = (vf0-o)*2c0
+            #  v0p+v0m-vf0(2c0) = 2o-2c0o = 2(1-c0)o
+            cc = c0[val[top] - 2]
+            tv = (v0p + v0m - 2 * cc * vf0) / (2 * (1 - cc))  # top vertex Euclidian
+            qE[:, 5] = wgt[5] * tv
+
+            if pat == 1 and ff == 1 and kk == 1:
+                fig = plt.figure()
+                ax = fig.add_subplot(111, projection='3d')
+                ax.scatter(v0m[0], v0m[1], v0m[2], color='c', marker='o')
+                ax.scatter(tv[0], tv[1], tv[2], color='r', marker='+')
+                plt.show()
+
+            # --- assemble
+            bbase = np.vstack((qE, wgt)).T
+            
