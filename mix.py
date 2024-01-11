@@ -22,14 +22,7 @@ tet = 0  # use tetrahedra data
 # --------- evaluated BB basis functions
 u0 = np.linspace(0, 1, n)
 u, v = np.meshgrid(u0, u0)
-bbb = {
-    1: (1 - u - v)**2,
-    2: 2 * (1 - u - v) * u,
-    3: u * u,
-    4: 2 * (1 - u - v) * v,
-    5: 2 * v * u,
-    6: v * v
-}
+bbb = {1: (1 - u - v) ** 2, 2: 2 * (1 - u - v) * u, 3: u * u, 4: 2 * (1 - u - v) * v, 5: 2 * v * u, 6: v * v}
 mask = np.ones((n, n))  # suppress half of the 4-sided patch
 bidx = np.triu_indices(n, k=1)
 mask[bidx] = np.nan
@@ -44,34 +37,23 @@ wti = 3 / (2 * (c0 + 1))
 
 # -------- GEOMETRY+CONNECTIVITY:  double simplex
 # Vertices
-V = np.array([
-    np.cos(2 * np.pi * np.array([0, 1, 2]) / 3).tolist() + [0, 0],
-    np.sin(2 * np.pi * np.array([0, 1, 2]) / 3).tolist() + [0, 0],
-    [0, 0, 0, -1, 1]
-])
+V = np.array(
+    [
+        np.cos(2 * np.pi * np.array([0, 1, 2]) / 3).tolist() + [0, 0],
+        np.sin(2 * np.pi * np.array([0, 1, 2]) / 3).tolist() + [0, 0],
+        [0, 0, 0, -1, 1],
+    ]
+)
 val = np.array([4, 4, 4, 3, 3])
 
 # Neighbors
-nbr = np.array([
-    [1, 4, 3, 5, 4, 1],
-    [2, 2, 2, 2, 3, 3],
-    [4, 3, 5, 1, 1, 5]
-]).T
+nbr = np.array([[1, 4, 3, 5, 4, 1], [2, 2, 2, 2, 3, 3], [4, 3, 5, 1, 1, 5]]).T
 
 if tet == 1:
     # -------- tet
-    V = 3 * np.array([
-        [-1, 1, 1, -1],
-        [-1, 1, -1, 1],
-        [-1, -1, 1, 1]
-    ])
+    V = 3 * np.array([[-1, 1, 1, -1], [-1, 1, -1, 1], [-1, -1, 1, 1]])
     val = np.array([3, 3, 3, 3])
-    nbr = np.array([
-        [2, 3, 4],
-        [1, 4, 3],
-        [4, 1, 2],
-        [3, 2, 1]
-    ])
+    nbr = np.array([[2, 3, 4], [1, 4, 3], [4, 1, 2], [3, 2, 1]])
 
 nbl = nbr[:, [2, 1, 0]]  # Reorder columns of nbr
 dim, vts = V.shape  # Get dimensions of V
@@ -79,22 +61,22 @@ fcs, vfc = nbr.shape  # Get dimensions of nbr
 
 # ---- draw funnel
 if shw > 0:
-    clr = ['y', 'c', 'r']  # Colors
+    clr = ["y", "c", "r"]  # Colors
     fidx = [1, 2, 5]  # Indices for funnel drawing
 
     fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+    ax = fig.add_subplot(111, projection="3d")
 
     for jj in range(3):
         ii = fidx[jj] - 1  # 0-based indexing
 
     ax.view_init(elev=-V[0, -1], azim=V[1, -1])  # 0-based indexing
-    ax.axis('equal')
+    ax.axis("equal")
     plt.show()
 
 # --- complete Euclidean part of a single quadratic
 if bvout == 1:
-    fp = open('mixW.bv', 'w')
+    fp = open("mixW.bv", "w")
 for orient in range(1, 3):
     if orient == 1:
         nbs = nbr
@@ -171,11 +153,11 @@ for orient in range(1, 3):
             v0m = dual[ntm][:, nn]
             if pat == 1 and ff == 1:
                 fig = plt.figure()
-                ax = fig.add_subplot(111, projection='3d')
-                ax.scatter(vf0[0], vf0[1], vf0[2], color='r', marker='o')
-                ax.scatter(v0p[0], v0p[1], v0p[2], color='g', marker='*')
-                ax.scatter(vfp[0], vfp[1], vfp[2], color='b', marker='*')
-                ax.scatter(v1p[0], v1p[1], v1p[2], color='k', marker='+')
+                ax = fig.add_subplot(111, projection="3d")
+                ax.scatter(vf0[0], vf0[1], vf0[2], color="r", marker="o")
+                ax.scatter(v0p[0], v0p[1], v0p[2], color="g", marker="*")
+                ax.scatter(vfp[0], vfp[1], vfp[2], color="b", marker="*")
+                ax.scatter(v1p[0], v1p[1], v1p[2], color="k", marker="+")
                 plt.show()
 
             wti_top = wti[val[top] - 2]
@@ -192,7 +174,7 @@ for orient in range(1, 3):
             w4 = w_top * wti_top
             wgt = [w1, w5, (w_top + w_bot + w_prv) / 3, w4, w5, w_top * wni_top]
 
-            qE = np.zeros((3, 6)) # Initialize qE as a 3x6 zero matrix: 3 rows for 3D points, 6 columns for the weights
+            qE = np.zeros((3, 6))  # Initialize qE as a 3x6 zero matrix: 3 rows for 3D points, 6 columns for the weights
             # --- assemble by averaging in coeff_i weight_i
             qE[:, 4] = wgt[4] * vf0
             qE[:, 1] = wgt[1] * (vf0 + vfp) / 2
@@ -209,11 +191,10 @@ for orient in range(1, 3):
 
             if pat == 1 and ff == 1 and kk == 1:
                 fig = plt.figure()
-                ax = fig.add_subplot(111, projection='3d')
-                ax.scatter(v0m[0], v0m[1], v0m[2], color='c', marker='o')
-                ax.scatter(tv[0], tv[1], tv[2], color='r', marker='+')
+                ax = fig.add_subplot(111, projection="3d")
+                ax.scatter(v0m[0], v0m[1], v0m[2], color="c", marker="o")
+                ax.scatter(tv[0], tv[1], tv[2], color="r", marker="+")
                 plt.show()
 
             # --- assemble
             bbase = np.vstack((qE, wgt)).T
-            
