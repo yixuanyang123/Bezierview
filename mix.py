@@ -22,22 +22,23 @@ tet = 0  # use tetrahedra data
 # --------- evaluated BB basis functions
 u0 = np.linspace(0, 1, n)
 u, v = np.meshgrid(u0, u0)
-bbb = {
-    1: (1 - u - v)**2,
-    2: 2 * (1 - u - v) * u,
-    3: u * u,
-    4: 2 * (1 - u - v) * v,
-    5: 2 * v * u,
-    6: v * v
-}
+bbb = {1: (1 - u - v) ** 2,
+       2: 2 * (1 - u - v) * u,
+       3: u * u,
+       4: 2 * (1 - u - v) * v,
+       5: 2 * v * u,
+       6: v * v}
 mask = np.ones((n, n))  # suppress half of the 4-sided patch
-bidx = np.triu_indices(n, k=1)
+bidx = np.triu_indices(n, k=1)  # not sure
 mask[bidx] = np.nan
 
-# Valences
-nn = np.array([3, 4])
+# (3 - 3*c0)/(c0 + 1),   3/(2*(c0 + 1))
+#  yields for c0 = -1/2     9, 3
+# 9
+# 3  1
+# 3  1  1
+nn = np.array([3, 4])  # allowed valences
 c0 = np.cos(2 * np.pi / nn)
-
 # Rational weights
 wni = 3 * (1 - c0) / (c0 + 1)
 wti = 3 / (2 * (c0 + 1))
@@ -49,7 +50,7 @@ V = np.array([
     np.sin(2 * np.pi * np.array([0, 1, 2]) / 3).tolist() + [0, 0],
     [0, 0, 0, -1, 1]
 ])
-val = np.array([4, 4, 4, 3, 3])
+val = np.array([4, 4, 4, 3, 3]) - 1
 
 # Neighbors
 nbr = np.array([
@@ -65,7 +66,7 @@ if tet == 1:
         [-1, 1, -1, 1],
         [-1, -1, 1, 1]
     ])
-    val = np.array([3, 3, 3, 3])
+    val = np.array([3, 3, 3, 3]) - 1
     nbr = np.array([
         [2, 3, 4],
         [1, 4, 3],
@@ -81,13 +82,10 @@ fcs, vfc = nbr.shape  # Get dimensions of nbr
 if shw > 0:
     clr = ['y', 'c', 'r']  # Colors
     fidx = [1, 2, 5]  # Indices for funnel drawing
-
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-
     for jj in range(3):
         ii = fidx[jj] - 1  # 0-based indexing
-
     ax.view_init(elev=-V[0, -1], azim=V[1, -1])  # 0-based indexing
     ax.axis('equal')
     plt.show()
@@ -95,7 +93,7 @@ if shw > 0:
 # --- complete Euclidean part of a single quadratic
 if bvout == 1:
     fp = open('mixW.bv', 'w')
-for orient in range(1, 3):
+for orient in range(2):
     if orient == 1:
         nbs = nbr
         idx = idx1
@@ -111,8 +109,9 @@ for orient in range(1, 3):
     ctr = np.zeros((V.shape[0], fcs))
     dual = [None] * fcs
     for ff in range(fcs):
-        fc[ff] = V[:, nbs[ff, :]]
-        ctr[:, ff] = np.dot(fc[ff], np.ones((vfc, 1))) / vfc
+        fc[ff] = V[:, nbs[ff, :] - 1]
+        # ctr[:, ff] = np.dot(fc[ff], np.ones((vfc, 1))) / vfc
+        ctr[:, ff] = np.mean(fc[ff], axis=0)
         dual[ff] = np.zeros((V.shape[0], vfc))
         for kk in range(vfc):
             dual[ff][:, kk] = (3 * ctr[:, ff] + fc[ff][:, kk]) / 4
@@ -152,10 +151,10 @@ for orient in range(1, 3):
             ntm = 0
             for jj in range(fcs):  # neighbor triangle prv-top edge
                 for nn in range(vfc):
-                    np = nn + 1
-                    if np >= vfc:
-                        np = 1
-                    if nbs[jj, nn] == top and nbs[jj, np] == prv:
+                    np1 = nn + 1
+                    if np1 >= vfc:
+                        np1 = 1
+                    if nbs[jj, nn] == top and nbs[jj, np1] == prv:
                         ntm = jj
                         break
                 if ntm != 0:
@@ -178,9 +177,9 @@ for orient in range(1, 3):
                 ax.scatter(v1p[0], v1p[1], v1p[2], color='k', marker='+')
                 plt.show()
 
-            wti_top = wti[val[top] - 2]
-            wti_bot = wti[val[nxt] - 2]
-            wni_top = wni[val[top] - 2]
+            wti_top = wti[val[top - 1] - 2]
+            wti_bot = wti[val[nxt - 1] - 2]
+            wni_top = wni[val[top - 1] - 2]
             # w_top = 2 * (1 + c0(val(top) - 2)) / 3
             # w_bot = 2 * (1 + c0(val(nxt) - 2)) / 3
             # w_prv = 2 * (1 + c0(val(prv) - 2)) / 3
@@ -190,10 +189,12 @@ for orient in range(1, 3):
             w1 = np.sqrt(wti_top * wti_bot)
             w5 = w_top
             w4 = w_top * wti_top
-            wgt = [w1, w5, (w_top + w_bot + w_prv) / 3, w4, w5, w_top * wni_top]
+            wgt = [w1, w5, (w_top + w_bot + w_prv) / 3,
+                   w4, w5,
+                   w_top * wni_top]
 
-            qE = np.zeros((3, 6)) # Initialize qE as a 3x6 zero matrix: 3 rows for 3D points, 6 columns for the weights
             # --- assemble by averaging in coeff_i weight_i
+            qE = np.zeros((3, 6))  # Initialize qE as a 3x6 zero matrix: 3 rows for 3D points, 6 columns for the weights
             qE[:, 4] = wgt[4] * vf0
             qE[:, 1] = wgt[1] * (vf0 + vfp) / 2
             midopp = wgt[1] * (v0p + v1p) / 2
@@ -203,10 +204,9 @@ for orient in range(1, 3):
 
             # top is average:  v0p-o + v0m-o = (vf0-o)*2c0
             #  v0p+v0m-vf0(2c0) = 2o-2c0o = 2(1-c0)o
-            cc = c0[val[top] - 2]
+            cc = c0[val[top - 1] - 2]
             tv = (v0p + v0m - 2 * cc * vf0) / (2 * (1 - cc))  # top vertex Euclidian
             qE[:, 5] = wgt[5] * tv
-
             if pat == 1 and ff == 1 and kk == 1:
                 fig = plt.figure()
                 ax = fig.add_subplot(111, projection='3d')
@@ -215,5 +215,47 @@ for orient in range(1, 3):
                 plt.show()
 
             # --- assemble
-            bbase = np.vstack((qE, wgt)).T
-            
+            bbase = np.vstack([qE, wgt]).T
+            # Show based on condition
+            if shw == 4:
+                if ff == 1:
+                    plt.figure()
+                    plt.plot(bbase[:, 0], bbase[:, 1], 'b')
+                    plt.show()
+
+            # Export
+            bez = {}  # Initialize bez as an empty dictionary
+            bez[ff][pat] = bbase[idx, :]
+
+            if bvout == 1:
+                with open(fp, 'a') as file:
+                    file.write(f"{11}\n{2}\n")
+                    for cf in range(cfs):  # BB-coeffs of patch
+                        file.write(
+                            f"{bez[ff][pat][cf, 0]} {bez[ff][pat][cf, 1]} {bez[ff][pat][cf, 2]} {bez[ff][pat][cf, 3]}\n")
+            if shw == 3:
+                plt.show(bez[ff][pat], dim, cfs, bbb, mask, 'r')
+            if bbnet == 1:
+                of = 0.01
+                for ii in range(cfs):
+                    ww = bbase[ii, 3]
+                    xx = bbase[ii, 0] / ww
+                    yy = bbase[ii, 1] / ww
+                    zz = bbase[ii, 2] / ww
+                    plt.text(xx + of, yy + of, zz + of, str(ww))
+                    plt.hold(True)
+                ids = np.array([[0, 1, 3], [1, 2, 4], [3, 4, 5]])
+                for ii in range(3):  # Three subtriangles of bb-net of one quadratic
+                    for jj in range(3):  # Each corner of a subtriangle
+                        jp = jj + 1
+                        if jp == 4:
+                            jp = 1
+                        ll = [ids[ii][jj] - 1, ids[ii][jp] - 1]
+
+                        color = 'k' if ff % 2 == 1 else 'r'
+                        plt.plot(bbase[ll, 0] / bbase[ll, 3], bbase[ll, 1] / bbase[ll, 3], bbase[ll, 2] / bbase[ll, 3],
+                                 color + '-', linewidth=3)
+                        plt.show()
+
+            if do_prt == 1:
+                plt.savefig('tst.png')
