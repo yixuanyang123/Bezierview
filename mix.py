@@ -7,13 +7,13 @@ plt.clf()
 # -------- functionality
 shw = 1
 do_prt = 0  # Python plotting: only makes sense when shw > 0
-bvout = 1
+bvout = 0
 bbnet = 1
 
 # -------- sizes
 cfs = 6  # coefficients per patch (total degree quadratic)
-idx1 = np.arange(1, cfs + 1)  # orientation
-idx0 = [3, 2, 1, 5, 4, 6]
+idx1 = np.arange(cfs)  # orientation
+idx0 = np.array([3, 2, 1, 5, 4, 6])-1
 pats = 6  # patches per triangle
 n = 32  # evaluation density
 dim = 3  # dimension of range (3-space)
@@ -88,7 +88,7 @@ if shw > 0:
         ii = fidx[jj] - 1  # 0-based indexing
     ax.view_init(elev=-V[0, -1], azim=V[1, -1])  # 0-based indexing
     ax.axis('equal')
-    plt.show()
+    #plt.show()
 
 # --- complete Euclidean part of a single quadratic
 if bvout == 1:
@@ -175,7 +175,7 @@ for orient in range(2):
                 ax.scatter(v0p[0], v0p[1], v0p[2], color='g', marker='*')
                 ax.scatter(vfp[0], vfp[1], vfp[2], color='b', marker='*')
                 ax.scatter(v1p[0], v1p[1], v1p[2], color='k', marker='+')
-                plt.show()
+                #plt.show()
 
             wti_top = wti[val[top - 1] - 2]
             wti_bot = wti[val[nxt - 1] - 2]
@@ -212,29 +212,31 @@ for orient in range(2):
                 ax = fig.add_subplot(111, projection='3d')
                 ax.scatter(v0m[0], v0m[1], v0m[2], color='c', marker='o')
                 ax.scatter(tv[0], tv[1], tv[2], color='r', marker='+')
-                plt.show()
+                #plt.show()
 
             # --- assemble
             bbase = np.vstack([qE, wgt]).T
+            # print(bbase.shape)
             # Show based on condition
             if shw == 4:
                 if ff == 1:
                     plt.figure()
                     plt.plot(bbase[:, 0], bbase[:, 1], 'b')
-                    plt.show()
+                    #plt.show()
 
+            # print(idx,ff,pat)
             # Export
-            bez = {}  # Initialize bez as an empty dictionary
-            bez[ff][pat] = bbase[idx, :]
+            bez = np.array([[[[0 for i in range(4)] for k in range(cfs)] for l in range(fcs)] for j in range(pats)])  # Initialize bez as an empty dictionary
+            # print(pat)
+            bez[pat][ff][:][:] = bbase[idx][:]
 
             if bvout == 1:
-                with open(fp, 'a') as file:
-                    file.write(f"{11}\n{2}\n")
-                    for cf in range(cfs):  # BB-coeffs of patch
-                        file.write(
-                            f"{bez[ff][pat][cf, 0]} {bez[ff][pat][cf, 1]} {bez[ff][pat][cf, 2]} {bez[ff][pat][cf, 3]}\n")
+                fp.write(f"{11}\n{2}\n")
+                for cf in range(cfs):  # BB-coeffs of patch
+                    fp.write(
+                        f"{bez[pat][ff][cf, 0]} {bez[pat][ff][cf, 1]} {bez[pat][ff][cf, 2]} {bez[pat][ff][cf, 3]}\n")
             if shw == 3:
-                plt.show(bez[ff][pat], dim, cfs, bbb, mask, 'r')
+                plt.show(bez[pat][ff], dim, cfs, bbb, mask, 'r')
             if bbnet == 1:
                 of = 0.01
                 for ii in range(cfs):
@@ -242,20 +244,22 @@ for orient in range(2):
                     xx = bbase[ii, 0] / ww
                     yy = bbase[ii, 1] / ww
                     zz = bbase[ii, 2] / ww
-                    plt.text(xx + of, yy + of, zz + of, str(ww))
-                    plt.hold(True)
+                    # print(ww,xx,yy,zz)
+                    ax.text(xx + of, yy + of, zz + of, str(round(ww,2)))
                 ids = np.array([[0, 1, 3], [1, 2, 4], [3, 4, 5]])
                 for ii in range(3):  # Three subtriangles of bb-net of one quadratic
                     for jj in range(3):  # Each corner of a subtriangle
                         jp = jj + 1
-                        if jp == 4:
+                        if jp == 3:
                             jp = 1
+
                         ll = [ids[ii][jj] - 1, ids[ii][jp] - 1]
 
                         color = 'k' if ff % 2 == 1 else 'r'
-                        plt.plot(bbase[ll, 0] / bbase[ll, 3], bbase[ll, 1] / bbase[ll, 3], bbase[ll, 2] / bbase[ll, 3],
+                        ax.plot(bbase[ll, 0] / bbase[ll, 3], bbase[ll, 1] / bbase[ll, 3], bbase[ll, 2] / bbase[ll, 3],
                                  color + '-', linewidth=3)
-                        plt.show()
+                        #plt.show()
 
             if do_prt == 1:
                 plt.savefig('tst.png')
+plt.show()
