@@ -12,7 +12,7 @@ bbnet = 1
 
 # -------- sizes
 cfs = 6  # coefficients per patch (total degree quadratic)
-idx1 = np.arange(cfs)  # orientation
+idx1 = np.arange(cfs) # orientation
 idx0 = np.array([3, 2, 1, 5, 4, 6])-1
 pats = 6  # patches per triangle
 n = 32  # evaluation density
@@ -22,15 +22,18 @@ tet = 0  # use tetrahedra data
 # --------- evaluated BB basis functions
 u0 = np.linspace(0, 1, n)
 u, v = np.meshgrid(u0, u0)
-bbb = {1: (1 - u - v) ** 2,
-       2: 2 * (1 - u - v) * u,
-       3: u * u,
-       4: 2 * (1 - u - v) * v,
-       5: 2 * v * u,
-       6: v * v}
-mask = np.ones((n, n))  # suppress half of the 4-sided patch
-bidx = np.triu_indices(n, k=1)  # not sure
-mask[bidx] = np.nan
+bbb = [(1 - u - v) ** 2, # not sure if this is correct, but it's not being used
+      2 * (1 - u - v) * u,
+      u * u,
+      2 * (1 - u - v) * v,
+      2 * v * u,
+      v * v]
+
+# Forms upper-left triangle and makes everything else nan
+mask = np.ones((n,n))
+for col in range(1,n):
+    for row in range(n-col, n):
+        mask[row][col] = np.nan
 
 # (3 - 3*c0)/(c0 + 1),   3/(2*(c0 + 1))
 #  yields for c0 = -1/2     9, 3
@@ -94,7 +97,7 @@ if shw > 0:
 if bvout == 1:
     fp = open('mixW.bv', 'w')
 for orient in range(2):
-    if orient == 1:
+    if orient == 0:
         nbs = nbr
         idx = idx1
         if bvout == 1:
@@ -105,16 +108,17 @@ for orient in range(2):
         if bvout == 1:
             print("group {} even".format(orient), file=fp)
 
-    fc = [None] * fcs
+    fc = np.array([None] * fcs)
     ctr = np.zeros((V.shape[0], fcs))
-    dual = [None] * fcs
+    dual = np.array([None] * fcs)
     for ff in range(fcs):
         fc[ff] = V[:, nbs[ff, :] - 1]
-        # ctr[:, ff] = np.dot(fc[ff], np.ones((vfc, 1))) / vfc
-        ctr[:, ff] = np.mean(fc[ff], axis=0)
+        A = fc[ff] @ np.ones((vfc,1))/vfc;
+        ctr[:, ff] = A[:,0]
         dual[ff] = np.zeros((V.shape[0], vfc))
         for kk in range(vfc):
             dual[ff][:, kk] = (3 * ctr[:, ff] + fc[ff][:, kk]) / 4
+            print(dual[ff][:, kk])
 
     # --- project vtx neighbors MISSING(not needed for specific geometry)
     for ii in range(vts):
