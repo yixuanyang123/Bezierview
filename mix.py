@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+qE = np.zeros((3, 6))  # Initialize qE as a 3x6 zero matrix: 3 rows for 3D points, 6 columns for the weights
 # Clearing the current figure
 plt.clf()
 
@@ -57,9 +58,9 @@ val = np.array([4, 4, 4, 3, 3]) - 1
 
 # Neighbors
 nbr = np.array([
-    [1, 4, 3, 5, 4, 1],
-    [2, 2, 2, 2, 3, 3],
-    [4, 3, 5, 1, 1, 5]
+    np.array([1, 4, 3, 5, 4, 1]) - 1,
+    np.array([2, 2, 2, 2, 3, 3]) - 1,
+    np.array([4, 3, 5, 1, 1, 5]) - 1
 ]).T
 
 if tet == 1:
@@ -80,6 +81,18 @@ if tet == 1:
 nbl = nbr[:, [2, 1, 0]]  # Reorder columns of nbr
 dim, vts = V.shape  # Get dimensions of V
 fcs, vfc = nbr.shape  # Get dimensions of nbr
+
+bez = np.array([
+        [
+            [
+                [0.0 for i in range(4)] for k in range(cfs)
+            ] for l in range(8)
+        ] for j in range(pats)
+    ])  # Initialize bez as an empty dictionary
+
+fc = np.array([None] * fcs)
+ctr = np.zeros((V.shape[0], fcs))
+dual = np.array([None] * fcs)
 
 # ---- draw funnel
 if shw > 0:
@@ -108,17 +121,13 @@ for orient in range(2):
         if bvout == 1:
             print("group {} even".format(orient), file=fp)
 
-    fc = np.array([None] * fcs)
-    ctr = np.zeros((V.shape[0], fcs))
-    dual = np.array([None] * fcs)
     for ff in range(fcs):
-        fc[ff] = V[:, nbs[ff, :] - 1]
+        fc[ff] = V[:, nbs[ff, :]]
         A = fc[ff] @ np.ones((vfc,1))/vfc;
         ctr[:, ff] = A[:,0]
         dual[ff] = np.zeros((V.shape[0], vfc))
         for kk in range(vfc):
             dual[ff][:, kk] = (3 * ctr[:, ff] + fc[ff][:, kk]) / 4
-            print(dual[ff][:, kk])
 
     # --- project vtx neighbors MISSING(not needed for specific geometry)
     for ii in range(vts):
@@ -127,7 +136,7 @@ for orient in range(2):
 
     for ff in range(fcs):
         for kk in range(vfc):  # k = index inside face if rem(pat,2)==1
-            pat = 2 * kk + orient
+            pat = 2 * (kk+1) + (orient+1) - 1
             km = kk - 1
             if km < 0:
                 km = kk + vfc - 1
@@ -137,15 +146,13 @@ for orient in range(2):
             top = nbs[ff, kk]  # top global vertex index
             nxt = nbs[ff, kp]  # bottom left vertex index
             prv = nbs[ff, km]  # bottom right vertex index
-            # kk
-            # kp km
-            # nxt prv
+
             ntp = 0
             for tt in range(fcs):  # neighbor triangle nxt
                 for ii in range(vfc):
                     ip = ii + 1
                     if ip >= vfc:
-                        ip = 1
+                        ip = 0
                     if nbs[tt, ii] == nxt and nbs[tt, ip] == top:
                         ntp = tt
                         break
@@ -157,7 +164,7 @@ for orient in range(2):
                 for nn in range(vfc):
                     np1 = nn + 1
                     if np1 >= vfc:
-                        np1 = 1
+                        np1 = 0
                     if nbs[jj, nn] == top and nbs[jj, np1] == prv:
                         ntm = jj
                         break
@@ -172,7 +179,7 @@ for orient in range(2):
             v0p = dual[ntp][:, ip]
             v1p = dual[ntp][:, ii]
             v0m = dual[ntm][:, nn]
-            if pat == 1 and ff == 1:
+            if pat == 0 and ff == 0:
                 fig = plt.figure()
                 ax = fig.add_subplot(111, projection='3d')
                 ax.scatter(vf0[0], vf0[1], vf0[2], color='r', marker='o')
@@ -198,7 +205,6 @@ for orient in range(2):
                    w_top * wni_top]
 
             # --- assemble by averaging in coeff_i weight_i
-            qE = np.zeros((3, 6))  # Initialize qE as a 3x6 zero matrix: 3 rows for 3D points, 6 columns for the weights
             qE[:, 4] = wgt[4] * vf0
             qE[:, 1] = wgt[1] * (vf0 + vfp) / 2
             midopp = wgt[1] * (v0p + v1p) / 2
@@ -211,7 +217,7 @@ for orient in range(2):
             cc = c0[val[top - 1] - 2]
             tv = (v0p + v0m - 2 * cc * vf0) / (2 * (1 - cc))  # top vertex Euclidian
             qE[:, 5] = wgt[5] * tv
-            if pat == 1 and ff == 1 and kk == 1:
+            if pat == 0 and ff == 0 and kk == 0:
                 fig = plt.figure()
                 ax = fig.add_subplot(111, projection='3d')
                 ax.scatter(v0m[0], v0m[1], v0m[2], color='c', marker='o')
@@ -223,17 +229,15 @@ for orient in range(2):
             # print(bbase.shape)
             # Show based on condition
             if shw == 4:
-                if ff == 1:
+                if ff == 0:
                     plt.figure()
                     plt.plot(bbase[:, 0], bbase[:, 1], 'b')
                     #plt.show()
 
             # print(idx,ff,pat)
             # Export
-            bez = np.array([[[[0 for i in range(4)] for k in range(cfs)] for l in range(fcs)] for j in range(pats)])  # Initialize bez as an empty dictionary
-            # print(pat)
-            bez[pat][ff][:][:] = bbase[idx][:]
 
+            bez[ff][pat] = bbase[idx,:][:]
             if bvout == 1:
                 fp.write(f"{11}\n{2}\n")
                 for cf in range(cfs):  # BB-coeffs of patch
@@ -248,16 +252,15 @@ for orient in range(2):
                     xx = bbase[ii, 0] / ww
                     yy = bbase[ii, 1] / ww
                     zz = bbase[ii, 2] / ww
-                    # print(ww,xx,yy,zz)
-                    ax.text(xx + of, yy + of, zz + of, str(round(ww,2)))
+                    ax.text(xx + of, yy + of, zz + of, round(ww,2))
                 ids = np.array([[0, 1, 3], [1, 2, 4], [3, 4, 5]])
                 for ii in range(3):  # Three subtriangles of bb-net of one quadratic
                     for jj in range(3):  # Each corner of a subtriangle
                         jp = jj + 1
                         if jp == 3:
-                            jp = 1
+                            jp = 0
 
-                        ll = [ids[ii][jj] - 1, ids[ii][jp] - 1]
+                        ll = [ids[ii][jj], ids[ii][jp]]
 
                         color = 'k' if ff % 2 == 1 else 'r'
                         ax.plot(bbase[ll, 0] / bbase[ll, 3], bbase[ll, 1] / bbase[ll, 3], bbase[ll, 2] / bbase[ll, 3],
